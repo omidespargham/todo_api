@@ -8,8 +8,8 @@ class Todo(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField()
     created = models.DateTimeField(auto_now_add=True)
-    done = models.booleanField(default=False)
-    time_to_do = models.DatetimeField(null=True,blank=True)
+    done = models.BooleanField(default=False)
+    time_to_do = models.DateTimeField(null=True,blank=True)
 
     def __str__(self):
         return f"{self.user} {self.title}"
