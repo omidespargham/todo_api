@@ -15,7 +15,13 @@ class ShowTodosView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        todos = Todo.objects.filter(user=request.user)
+        todos = Todo.objects.filter(user=request.user).order_by("-created")
+        todo_filters = {
+            "search": request.query_params.get("search", ""),
+            "date": request.query_params.get("date", "0"),
+            "done_status": request.query_params.get("done_status", "0")
+        }
+        todos = Todo.todo_date_and_done_filter(todos, **todo_filters)
         srz_data = TodoSerializer(instance=todos, many=True).data
         return Response(data=srz_data, status=status.HTTP_200_OK)
 
@@ -47,14 +53,20 @@ class TodoRetriveView(APIView):
 
 class TodoUpdateView(APIView):
     permission_classes = [IsAuthenticated]
+
     def put(self, request, pk):
-        todo = Todo.objects.get(user=request.user, pk=pk)
-        de_srz = TodoSerializer(instance=todo, data=request.data, partial=True)
-        if de_srz.is_valid():
-            de_srz.validated_data["slug"] = slugify(de_srz.validated_data["title"])
-            de_srz.save()
-            return Response(data=de_srz.data,status=status.HTTP_200_OK)
-        return Response(data=de_srz.errors,status=status.HTTP_400_BAD_REQUEST)
+        try:
+            todo = Todo.objects.get(user=request.user, pk=pk)
+            de_srz = TodoSerializer(
+                instance=todo, data=request.data, partial=True)
+            if de_srz.is_valid():
+                if de_srz.validated_data.get("title"):
+                    de_srz.validated_data["slug"] = slugify(de_srz.validated_data["title"]) 
+                de_srz.save()
+                return Response(data=de_srz.data, status=status.HTTP_200_OK)
+            return Response(data=de_srz.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Todo.DoesNotExist:
+            return Response(data={"error": "Does not Exist !!"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TodoDeleteView(APIView):
@@ -69,9 +81,17 @@ class TodoDeleteView(APIView):
             return Response(data={"status": "does not exist !!"})
 
 
-class TodoCreateListView(ListCreateAPIView):
-    queryset = Todo.objects.all()
-    serializer_class = TodoSerializer
+class GetSessionData(APIView):
+    # permission_classes=
+    def post(self, request):
+        request.session["user"] = request.session.get("user", {})
+        request.session["user"].update(request.data.dict())
+        return Response(data=request.session["user"])
+
+
+# class TodoCreateListView(ListCreateAPIView):
+#     queryset = Todo.objects.all()
+#     serializer_class = TodoSerializer
 
 # class UpdateTodoView(APIView):
     # def put(self ,request,pk):
